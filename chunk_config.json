@@ -1,0 +1,5 @@
+{
+  "chunk_size_chars": 10000,
+  "chunk_buffer_chars": 100,
+  "sentence_ending_pattern": "[.!?。！？؟｡۔।॥…‥։።፨៕៖\\u0965\\u104B\\u17D4]+[\"'’”»）)\\]】」』]*(?=\\s|$)"
+}

@@ -25,6 +25,9 @@ DEFAULT_CDP_URL = "http://127.0.0.1:9222"
 PROJECT_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = PROJECT_DIR / "config.json"
 POLL_INTERVAL_SECONDS = 0.1
+RATE_LIMIT_CLICK_WINDOW_SECONDS = 4.0
+RATE_LIMIT_COOLDOWN_SECONDS = 30 * 60
+WAITING_TIME_BEFORE_CLICKING_CONTINUE_BTN_SECONDS = 5.0
 
 
 class ConfigError(ValueError):
@@ -153,6 +156,8 @@ def wait_for_continue_button(page: Page, timeout_seconds: float = 0) -> Locator:
 
 def click_continue_once(page: Page, timeout_seconds: float = 0) -> None:
     button = wait_for_continue_button(page, timeout_seconds)
+    # Wait for 5 seconds before clicking.
+    time.sleep(WAITING_TIME_BEFORE_CLICKING_CONTINUE_BTN_SECONDS)
     button.click()
 
 
@@ -163,6 +168,7 @@ def watch_continue_button(
 ) -> int:
     """Click each appearance once and stop after the configured idle interval."""
     last_click_at = time.monotonic()
+    previous_click_at: float | None = None
     button_is_armed = True
     click_count = 0
 
@@ -176,8 +182,25 @@ def watch_continue_button(
         elif button_is_armed:
             button.click()
             click_count += 1
-            last_click_at = time.monotonic()
-            button_is_armed = False
+            click_at = time.monotonic()
+            if (
+                previous_click_at is not None
+                and click_at - previous_click_at < RATE_LIMIT_CLICK_WINDOW_SECONDS
+            ):
+                print(
+                    "Possible temporary rate limit detected: Continue was "
+                    f"clicked again within {RATE_LIMIT_CLICK_WINDOW_SECONDS:g} seconds. Waiting 30 minutes before "
+                    "resuming.",
+                    flush=True,
+                )
+                time.sleep(RATE_LIMIT_COOLDOWN_SECONDS)
+                last_click_at = time.monotonic()
+                previous_click_at = None
+                button_is_armed = True
+            else:
+                last_click_at = click_at
+                previous_click_at = click_at
+                button_is_armed = False
 
         time.sleep(poll_interval_seconds)
 

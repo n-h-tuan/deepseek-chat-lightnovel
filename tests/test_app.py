@@ -142,6 +142,50 @@ class WatchContinueButtonTests(unittest.TestCase):
         first_button.click.assert_called_once_with()
         second_button.click.assert_called_once_with()
 
+    def test_waits_thirty_minutes_when_clicks_are_under_one_second_apart(self) -> None:
+        first_button = FakeButton("Continue")
+        second_button = FakeButton("Continue")
+        resumed_button = FakeButton("Continue")
+        page = FakePage([first_button])
+        monotonic_values = iter(
+            [0.0, 0.0, 0.0, 0.1, 0.2, 0.2, 300.2, 300.2, 300.2, 600.2]
+        )
+
+        with (
+            patch.object(app.time, "monotonic", side_effect=lambda: next(monotonic_values)),
+            patch.object(app.time, "sleep") as sleep,
+            patch.object(
+                app,
+                "find_continue_button",
+                side_effect=[
+                    first_button,
+                    None,
+                    second_button,
+                    resumed_button,
+                    None,
+                ],
+            ),
+            patch("builtins.print") as print_log,
+        ):
+            click_count = app.watch_continue_button(
+                page,
+                inactivity_timeout_seconds=300,
+                poll_interval_seconds=0.1,
+            )
+
+        self.assertEqual(click_count, 3)
+        first_button.click.assert_called_once_with()
+        second_button.click.assert_called_once_with()
+        resumed_button.click.assert_called_once_with()
+        sleep.assert_any_call(app.RATE_LIMIT_COOLDOWN_SECONDS)
+        self.assertTrue(
+            any(
+                "rate limit" in str(call).casefold()
+                and "30 minutes" in str(call).casefold()
+                for call in print_log.call_args_list
+            )
+        )
+
 
 class ExistingChatTabTests(unittest.TestCase):
     def test_reuses_existing_tab_for_same_chat(self) -> None:

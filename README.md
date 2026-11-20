@@ -68,6 +68,21 @@ The watcher clicks once when the button appears, waits for that button to
 disappear before clicking a later appearance, and exits after five minutes
 without a click. Use `Ctrl+C` to stop it sooner.
 
+## Chunk text files
+
+Place `.txt` files in `INPUT_CHUNK` and run:
+
+```powershell
+.\chunk.ps1
+```
+
+The chunker uses Python from `PATH` and writes sentence-aware chunks to
+`OUTPUT_CHUNK`. Chunk size, forward buffer, and sentence-ending pattern are
+configured in `chunk_config.json`. A chunk may be up to the configured buffer
+larger than its target to end at a sentence boundary; if none is found, it
+splits at the target size. Each run removes stale generated chunk files from
+`OUTPUT_CHUNK`.
+
 Options:
 
 ```powershell
@@ -76,7 +91,9 @@ Options:
 ```
 
 The inactivity timeout is in seconds; the default is 300. `--timeout` remains
-available as an alias. When the app exits, the Chrome window stays open.
+available as an alias. If two successful clicks occur less than one second
+apart, the log reports a suspected temporary rate limit and the app waits 30
+minutes before resuming. When the app exits, the Chrome window stays open.
 
 ## Troubleshooting
 
